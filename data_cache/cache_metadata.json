@@ -1,0 +1,43 @@
+{
+  "prices_last_update": "2025-11-23T23:20:27.871945",
+  "prices_last_date": "2025-11-21 00:00:00",
+  "prices_tickers": [
+    "ACB",
+    "BCM",
+    "BID",
+    "BVH",
+    "CTG",
+    "FPT",
+    "GAS",
+    "GVR",
+    "HDB",
+    "HPG",
+    "KDH",
+    "MBB",
+    "MSN",
+    "MWG",
+    "NVL",
+    "PDR",
+    "PLX",
+    "POW",
+    "SAB",
+    "SHB",
+    "SSI",
+    "STB",
+    "TCB",
+    "TPB",
+    "VCB",
+    "VHM",
+    "VIC",
+    "VJC",
+    "VNM",
+    "VPB"
+  ],
+  "vnindex_last_update": "2025-11-23T23:20:30.714266",
+  "vnindex_last_date": "2025-11-21 00:00:00",
+  "returns_last_update": "2025-11-23T23:20:31.277344",
+  "returns_date_range": {
+    "start": "2020-01-03 00:00:00",
+    "end": "2025-11-21 00:00:00"
+  }
+}
