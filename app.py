@@ -329,10 +329,7 @@ def tab_eda():
 
     all_tickers = sorted(prices_clean['ticker'].unique())
 
-    # --- [ĐÃ XÓA ĐOẠN KHAI BÁO LẠI DỮ LIỆU THÔ Ở ĐÂY ĐỂ TRÁNH LỖI] ---
-
     # --- [BƯỚC 2] CẤU HÌNH & VISUALIZATION ---
-    # Lấy mã đang nhập ở Sidebar
     sidebar_ticker = st.session_state.get('special_ticker', 'GAS')
 
     # Kiểm tra nếu mã sidebar có trong dữ liệu thì lấy
@@ -345,10 +342,8 @@ def tab_eda():
     )
 
     if selected_tickers:
-        # Lọc dữ liệu vẽ biểu đồ (DÙNG PRICES_CLEAN thay vì PRICES thô)
+        # Lọc dữ liệu vẽ biểu đồ
         subset_price = prices_clean[prices_clean['ticker'].isin(selected_tickers)]
-
-        # Unpivot để vẽ nhiều đường
         subset_ret = daily_returns[selected_tickers].reset_index().melt(id_vars='date', var_name='ticker',
                                                                         value_name='return')
 
@@ -356,22 +351,34 @@ def tab_eda():
         st.markdown("#### 📊 Biểu đồ Trực quan")
         c1, c2, c3 = st.columns(3)
 
-
         # Cột 1: Giá (Price)
         with c1:
             st.caption("1. Diễn biến Giá")
             fig_p = px.line(subset_price, x='date', y='close', color='ticker', template="plotly_dark", height=300)
             fig_p.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), xaxis_title=None, yaxis_title=None)
-            fig_p.write_image("assets/eda_price.png")  # <--- LƯU
-            st.plotly_chart(fig_p, use_container_width=True)
+
+            # [FIX LỖI KALEIDO & CSV] Dùng try-except
+            try:
+                fig_p.write_image("assets/eda_price.png")
+            except Exception:
+                pass
+
+            # [FIX LỖI DUPLICATE ID] Thêm key="eda_price"
+            st.plotly_chart(fig_p, use_container_width=True, key="eda_price_chart")
 
         # Cột 2: Biến động (Return Volatility)
         with c2:
             st.caption("2. Biến động Lợi suất")
             fig_r = px.line(subset_ret, x='date', y='return', color='ticker', template="plotly_dark", height=300)
             fig_r.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), xaxis_title=None, yaxis_title=None)
-            fig_r.write_image("assets/eda_return.png")  # <--- LƯU
-            st.plotly_chart(fig_r, use_container_width=True)
+
+            try:
+                fig_r.write_image("assets/eda_return.png")
+            except Exception:
+                pass
+
+            # [FIX LỖI DUPLICATE ID] Thêm key="eda_return"
+            st.plotly_chart(fig_r, use_container_width=True, key="eda_return_chart")
 
         # Cột 3: Phân phối (Histogram)
         with c3:
@@ -379,19 +386,59 @@ def tab_eda():
             fig_h = px.histogram(subset_ret, x="return", color="ticker", barmode="overlay", opacity=0.6,
                                  template="plotly_dark", height=300)
             fig_h.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), xaxis_title=None, yaxis_title=None)
-            fig_h.write_image("assets/eda_hist.png")  # <--- LƯU
-            st.plotly_chart(fig_h, use_container_width=True)
+
+            try:
+                fig_h.write_image("assets/eda_hist.png")
+            except Exception:
+                pass
+
+            # [FIX LỖI DUPLICATE ID] Thêm key="eda_hist"
+            st.plotly_chart(fig_h, use_container_width=True, key="eda_hist_chart")
+
+    # --- PHẦN MOMENTUM ---
+    st.markdown("---")
+    st.markdown("#### 🚀 Phân tích Momentum (Đà tăng trưởng)")
+    st.caption("Momentum đo lường sức mạnh tăng giá trong quá khứ.")
+
+    # Tính toán Momentum
+    mom_1m = pivot_prices.pct_change(20).iloc[-1] * 100
+    mom_3m = pivot_prices.pct_change(60).iloc[-1] * 100
+    mom_6m = pivot_prices.pct_change(120).iloc[-1] * 100
+
+    df_mom = pd.DataFrame({"1M": mom_1m, "3M": mom_3m, "6M": mom_6m}).dropna()
+    df_mom_top = df_mom.sort_values("3M", ascending=False).head(15)
+
+    import plotly.figure_factory as ff
+    z = df_mom_top.T.values.round(2)
+    x = df_mom_top.index.tolist()
+    y = df_mom_top.columns.tolist()
+
+    fig_mom = ff.create_annotated_heatmap(z, x=x, y=y, colorscale='Viridis', showscale=True)
+    fig_mom.update_layout(title="Top 15 Cổ phiếu có Đà tăng mạnh nhất", height=350, template="plotly_dark",
+                          margin=dict(l=10, r=10, t=50, b=10))
+
+    try:
+        fig_mom.write_image("assets/eda_momentum.png")
+        df_mom.to_csv("assets/momentum_rank.csv")
+    except Exception:
+        pass
+
+    st.plotly_chart(fig_mom, use_container_width=True, key="eda_mom_chart")
 
     st.markdown("---")
 
     # --- THỐNG KÊ & HEATMAP ---
     st.markdown("#### 📋 Thống kê Tổng hợp & Tương quan")
 
-    # Bảng thống kê (Full 30 mã)
     stats_df = daily_returns.describe().T[['mean', 'std', 'min', 'max', '50%']]
     stats_df.columns = ['Mean', 'Std', 'Min', 'Max', 'Median']
     stats_df['Skew'] = daily_returns.skew()
-    stats_df.to_csv("assets/eda_summary_stats.csv")  # <--- LƯU CSV
+
+    # Lưu CSV an toàn
+    try:
+        stats_df.to_csv("assets/eda_summary_stats.csv")
+    except Exception:
+        pass
 
     # Layout 2 cột
     col_tbl, col_hm = st.columns([1.5, 1])
@@ -406,9 +453,15 @@ def tab_eda():
     with col_hm:
         corr = daily_returns.corr()
         fig_corr = px.imshow(corr, text_auto=False, color_continuous_scale='RdBu_r')
-        fig_corr.write_image("assets/eda_heatmap.png")  # <--- LƯU ẢNH
         fig_corr.update_layout(height=400, margin=dict(l=0, r=0, t=0, b=0))
-        st.plotly_chart(fig_corr, use_container_width=True)
+
+        try:
+            fig_corr.write_image("assets/eda_heatmap.png")
+        except Exception:
+            pass
+
+        # [FIX LỖI DUPLICATE ID] Thêm key="eda_corr"
+        st.plotly_chart(fig_corr, use_container_width=True, key="eda_corr_chart")
 
 
 def tab_capm():
@@ -440,9 +493,13 @@ def tab_capm():
                 res = capm_analysis(stocks, vnindex, rf_mode=rf_mode, newey_west=newey_west)
                 if res is not None and not res.empty:
                     st.session_state.capm_results = res
-                    # Lưu cache và CSV
-                    res.to_parquet(CACHE_DIR / "capm_results_app.parquet")
-                    res.to_csv("exports/capm_results.csv")
+
+                    # [SAFE SAVE] Lưu dữ liệu
+                    try:
+                        res.to_parquet(CACHE_DIR / "capm_results_app.parquet")
+                        res.to_csv("exports/capm_results.csv")
+                    except Exception:
+                        pass
 
                     if manual_run:
                         st.success(f"✅ Đã cập nhật: {len(res)} mã.")
@@ -475,8 +532,14 @@ def tab_capm():
         )
         fig1.update_traces(textposition='top center', marker=dict(size=12))
         fig1.update_layout(template="plotly_dark")
-        fig1.write_image("assets/capm_beta_r2.png")  # Lưu ảnh
-        st.plotly_chart(fig1, use_container_width=True)
+
+        # [SAFE SAVE] Bọc lỗi lưu ảnh
+        try:
+            fig1.write_image("assets/capm_beta_r2.png")
+        except Exception:
+            pass  # Lờ đi nếu lỗi
+
+        st.plotly_chart(fig1, use_container_width=True, key="chart_beta_r2")
 
         with st.expander("💡 Giải thích"):
             st.caption("R² càng cao (gần 1) thì Beta càng đáng tin cậy.")
@@ -495,23 +558,26 @@ def tab_capm():
         fig2.add_vline(x=1, line_dash="dot", line_color="gray", opacity=0.5)
         fig2.update_traces(textposition='top center', marker=dict(size=12))
         fig2.update_layout(template="plotly_dark")
-        fig2.write_image("assets/capm_alpha_beta.png")  # Lưu ảnh
-        st.plotly_chart(fig2, use_container_width=True)
+
+        # [SAFE SAVE] Bọc lỗi lưu ảnh
+        try:
+            fig2.write_image("assets/capm_alpha_beta.png")
+        except Exception:
+            pass
+
+        st.plotly_chart(fig2, use_container_width=True, key="chart_alpha_beta")
 
         with st.expander("💡 Giải thích"):
             st.caption("Góc Trái-Trên: Lợi nhuận cao (Alpha > 0), Rủi ro thấp (Beta < 1).")
 
         st.markdown("---")
 
-        # --- [MỚI] CHART 3: BETA RANKING (BAR CHART) ---
+        # --- CHART 3: BETA RANKING (BAR CHART) ---
         st.markdown("### 3. Xếp hạng Beta (Mức độ Rủi ro)")
 
-        # Chuẩn bị dữ liệu vẽ (Sắp xếp giảm dần)
         df_plot = capm_res.sort_values('beta', ascending=False)
-        # Đảm bảo có cột ticker để vẽ trục X
         if 'ticker' not in df_plot.columns:
             df_plot = df_plot.reset_index()
-            # Nếu reset index mà tên cột index cũ là 'index' hoặc None thì đổi thành 'ticker'
             if 'ticker' not in df_plot.columns:
                 df_plot.columns.values[0] = 'ticker'
 
@@ -520,27 +586,25 @@ def tab_capm():
             x='ticker',
             y='beta',
             color='beta',
-            color_continuous_scale='Spectral_r',  # Màu đỏ (cao) -> Xanh (thấp)
+            color_continuous_scale='Spectral_r',
             text_auto='.2f',
             height=500
         )
-
-        # Thêm đường tham chiếu Beta = 1
         fig3.add_hline(y=1, line_dash="dash", line_color="white", annotation_text="Market Risk (1.0)")
+        fig3.update_layout(template="plotly_dark", xaxis_title=None, yaxis_title="Beta Hệ thống", hovermode="x unified")
 
-        fig3.update_layout(
-            template="plotly_dark",
-            xaxis_title=None,
-            yaxis_title="Beta Hệ thống",
-            hovermode="x unified"
-        )
+        # [SAFE SAVE] Bọc lỗi lưu ảnh
+        try:
+            fig3.write_image("assets/capm_beta_bar.png")
+        except Exception:
+            pass
 
-        # Lưu ảnh và hiển thị
-        fig3.write_image("assets/capm_beta_bar.png")
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig3, use_container_width=True, key="chart_beta_bar")
+
 
 def tab_arima():
     """ARIMA Section: Auto-Run, AIC/BIC Selection & Display"""
+    st.subheader("3. Dự báo Chuỗi thời gian (ARIMA)")
 
     # 1. Kiểm tra dữ liệu
     if st.session_state.prices_df is None:
@@ -572,9 +636,9 @@ def tab_arima():
         last_price = float(price_series.iloc[-1])
         last_date = price_series.index[-1]
 
-        # --- [MỚI] KIỂM ĐỊNH TÍNH DỪNG (ADF) ---
+        # --- KIỂM ĐỊNH TÍNH DỪNG (ADF) ---
         st.markdown("---")
-        st.markdown("#### 📉 Kiểm định ADF (Stationarity)")
+        st.markdown("#### 📉 Kiểm định ADF")
         try:
             adf_res = check_stationarity(return_series)
             if adf_res['is_stationary']:
@@ -582,7 +646,7 @@ def tab_arima():
             else:
                 st.warning(f"⚠️ {adf_res['conclusion']}")
             st.caption(f"ADF Statistic: {adf_res['statistic']:.4f} | p-value: {adf_res['pvalue']:.4f}")
-        except Exception as e:
+        except Exception:
             st.error("Lỗi tính ADF")
 
         st.markdown("---")
@@ -597,7 +661,6 @@ def tab_arima():
             q = st.number_input("MA (q)", 0, 10, 1)
             order = (p, d, q)
         else:
-            # [SỬA ĐỔI] Cho phép chọn tiêu chí tối ưu (AIC hoặc BIC)
             criteria = st.radio("Tiêu chí tối ưu mô hình:", ["BIC (Ưu tiên đơn giản)", "AIC (Ưu tiên khớp dữ liệu)"])
             use_bic = True if "BIC" in criteria else False
 
@@ -610,18 +673,17 @@ def tab_arima():
         run_backtest_btn = st.button("🔄 Backtest", use_container_width=True)
 
     with col_results:
+        # --- PHẦN 1: DỰ BÁO ---
         if run_btn:
             try:
                 with st.spinner(f"Đang tìm mô hình tối ưu theo {'BIC' if use_bic else 'AIC'}..."):
                     # 1. Fit Model
-                    fit_res = fit_arima_on_returns(
-                        return_series,
-                        order=order,
-                        use_bic=use_bic
-                    )
+                    fit_res = fit_arima_on_returns(return_series, order=order, use_bic=use_bic)
+
+                    # [LƯU SESSION] Để Backtest dùng lại
                     st.session_state['saved_arima_order'] = fit_res['order']
 
-                    # 2. Dự báo & Tái lập giá
+                    # 2. Dự báo
                     fc_df = forecast_arima_returns(fit_res, n_steps, last_price, last_date)
 
                     if fc_df['forecast_price'].isnull().any():
@@ -631,24 +693,24 @@ def tab_arima():
                         fig = forecast_figure(price_series, return_series, fc_df,
                                               title=f"Dự báo {ticker} - Model: ARIMA{fit_res['order']}")
 
-                        # [FIX] Lưu ảnh sau khi vẽ xong (trong hàm core đã vẽ rồi)
-                        fig.write_image("assets/arima_forecast.png")
-                        fc_df.to_csv("assets/arima_forecast_data.csv")
-                        st.plotly_chart(fig, use_container_width=True)
+                        # [SAFE SAVE] Bọc lỗi lưu ảnh/csv
+                        try:
+                            fig.write_image("assets/arima_forecast.png")
+                            fc_df.to_csv("assets/arima_forecast_data.csv")
+                        except Exception:
+                            pass
 
-                        # 4. Hiển thị Metrics
+                        st.plotly_chart(fig, use_container_width=True, key="arima_forecast_chart")
+
+                        # 4. Metrics
                         m1, m2, m3 = st.columns(3)
-
-                        # Cột 1: Thông tin Mô hình & AIC/BIC
                         m1.metric("Mô hình", f"ARIMA{fit_res['order']}")
                         m1.caption(f"📉 **AIC:** {fit_res['aic']:.1f} | **BIC:** {fit_res['bic']:.1f}")
 
-                        # Cột 2: Giá mục tiêu
                         end_price_fc = fc_df['forecast_price'].iloc[-1]
                         chg = (end_price_fc - last_price) / last_price * 100
                         m2.metric("Giá mục tiêu", f"{end_price_fc:,.0f}", f"{chg:+.2f}%")
 
-                        # Cột 3: Kiểm định nhiễu trắng
                         wn_status = "✅ Đạt" if fit_res['diagnostics']['is_white_noise'] else "⚠️ Không"
                         m3.metric("White Noise?", wn_status)
                         m3.caption(f"p-value: {fit_res['diagnostics']['ljung_box_pvalue']:.4f}")
@@ -661,66 +723,57 @@ def tab_arima():
                             f"arima_{ticker}.csv",
                             "text/csv"
                         )
-
             except Exception as e:
                 st.error(f"❌ Lỗi xử lý: {str(e)}")
 
+        # --- PHẦN 2: BACKTEST ---
         if run_backtest_btn:
             with st.spinner("Đang chạy Backtest..."):
-
-                final_order = order  # Mặc định lấy từ input (None nếu là Auto, hoặc số nếu là Manual)
-
-                # Nếu đang ở chế độ Auto VÀ đã từng chạy dự báo rồi -> Lấy kết quả dự báo ốp vào
+                # Logic chọn Order đồng bộ
+                final_order = order
                 if final_order is None and 'saved_arima_order' in st.session_state:
                     final_order = st.session_state['saved_arima_order']
-                    st.caption(f"💡 Đang Backtest trên mô hình cố định: **ARIMA{final_order}** (Lấy từ kết quả Dự báo)")
-                # -----------------------------------------------
+                    st.caption(f"💡 Đang Backtest trên mô hình cố định: **ARIMA{final_order}**")
+
                 bt_res = rolling_backtest(
-                    return_series,
-                    price_series,
-                    test_size=test_size,
-                    order=final_order,
-                    use_bic=use_bic
+                    return_series, price_series, test_size=test_size,
+                    order=final_order, use_bic=use_bic
                 )
 
-                # [FIX LOGIC BACKTEST]
                 if "error" in bt_res:
                     st.error(bt_res["error"])
                 else:
-                    # Chỉ khi không lỗi mới chạy vào đây
-
-                    # 1. Lưu dữ liệu
-                    bt_res['plot_data'].to_csv("assets/arima_backtest_data.csv")
+                    # [SAFE SAVE] Lưu dữ liệu
+                    try:
+                        bt_res['plot_data'].to_csv("assets/arima_backtest_data.csv")
+                    except Exception:
+                        pass
 
                     st.markdown("#### 📊 Hiệu quả Dự báo (Kiểm chứng quá khứ)")
-
-                    # 2. Hiển thị thông tin mô hình
                     st.info(
                         f"ℹ️ Đã Backtest bằng mô hình: **ARIMA{bt_res['order_used']}** (Tối ưu theo **{bt_res.get('criterion', 'Manual')}**)")
 
                     col_metric1, col_metric2, col_metric3 = st.columns(3)
-
                     col_metric1.metric("MAPE (Sai số %)", f"{bt_res['mape_pct']:.2f}%")
-                    # Lưu ý: Nếu data gốc đơn vị là nghìn đồng, nhân 1000 là đúng. Nếu data gốc là đồng, không cần nhân.
-                    # Ở đây giữ nguyên theo code cũ của bạn
-                    col_metric1.metric("RMSE (Sai số giá)", f"{bt_res['rmse_vnd'] * 1000:,.0f} VND")
+                    col_metric2.metric("RMSE (Sai số giá)", f"{bt_res['rmse_vnd'] * 1000:,.0f} VND")
                     col_metric3.metric("MAE (Sai số TB)", f"{bt_res['mae_vnd'] * 1000:,.0f} VND")
 
-                    # 3. Vẽ biểu đồ
                     df_bt = bt_res['plot_data']
                     fig_bt = go.Figure()
-
-                    fig_bt.add_trace(go.Scatter(x=df_bt.index, y=df_bt['actual'], name='Thực tế',
-                                                line=dict(color='#2962FF')))
+                    fig_bt.add_trace(
+                        go.Scatter(x=df_bt.index, y=df_bt['actual'], name='Thực tế', line=dict(color='#2962FF')))
                     fig_bt.add_trace(go.Scatter(x=df_bt.index, y=df_bt['predicted'], name='Dự báo Model',
                                                 line=dict(color='#FF6D00', dash='dot')))
                     fig_bt.update_layout(title=f"Backtest {test_size} phiên gần nhất", height=400,
                                          template="plotly_dark")
 
-                    # [FIX] Lưu ảnh SAU KHI đã add trace
-                    fig_bt.write_image("assets/arima_backtest.png")
+                    # [SAFE SAVE] Lưu ảnh
+                    try:
+                        fig_bt.write_image("assets/arima_backtest.png")
+                    except Exception:
+                        pass
 
-                    st.plotly_chart(fig_bt, use_container_width=True)
+                    st.plotly_chart(fig_bt, use_container_width=True, key="arima_backtest_chart")
 
 def tab_portfolio_report():
     """Chiến lược: Minh bạch danh mục, Backtest & Chỉ số chuyên sâu"""
@@ -791,48 +844,48 @@ def tab_portfolio_report():
                 st.error(f"🚀 **Danh mục Mạo hiểm ({risky_lab})** - Beta TB: {beta_series[risky_list].mean():.2f}")
                 st.write(f"**Gồm {len(risky_list)} mã:** {', '.join(risky_list)}")
 
-                # --- 3. BACKTEST (TÍNH TOÁN TRỰC TIẾP & ĐỒNG BỘ DỮ LIỆU) ---
-                st.markdown("### 3. Hiệu quả Tăng trưởng (Backtest)")
+            # --- 3. BACKTEST (TÍNH TOÁN TRỰC TIẾP & ĐỒNG BỘ DỮ LIỆU) ---
+            st.markdown("### 3. Hiệu quả Tăng trưởng (Backtest)")
 
-                # Bước A: Pivot bảng giá từ Session State (Đảm bảo đồng bộ với Tab 1)
-                p_pivot = prices.pivot_table(index='date', columns='ticker', values='close')
+            # Bước A: Pivot bảng giá từ Session State (Đảm bảo đồng bộ với Tab 1)
+            p_pivot = prices.pivot_table(index='date', columns='ticker', values='close')
 
-                # Bước B: Resample về cuối tháng (M) và tính % thay đổi
-                # fill_method=None để tránh warning pandas mới
-                mret_wide = p_pivot.resample('M').last().pct_change(fill_method=None).dropna(how='all')
+            # Bước B: Resample về cuối tháng (M) và tính % thay đổi
+            # fill_method=None để tránh warning pandas mới
+            mret_wide = p_pivot.resample('M').last().pct_change(fill_method=None).dropna(how='all')
 
-                # Bước C: Chuẩn hóa tên (Viết hoa, bỏ khoảng trắng)
-                mret_wide.columns = mret_wide.columns.str.strip().str.upper()
-                buckets.index = buckets.index.str.strip().str.upper()
+            # Bước C: Chuẩn hóa tên (Viết hoa, bỏ khoảng trắng)
+            mret_wide.columns = mret_wide.columns.str.strip().str.upper()
+            buckets.index = buckets.index.str.strip().str.upper()
 
-                # Hiển thị thông tin Debug
-                d2.info(f"Dữ liệu giá tháng: **{mret_wide.shape[0]}** tháng x **{mret_wide.shape[1]}** mã")
+            # Hiển thị thông tin Debug
+            d2.info(f"Dữ liệu giá tháng: **{mret_wide.shape[0]}** tháng x **{mret_wide.shape[1]}** mã")
 
-                # Bước D: Align dữ liệu (Giao thoa giữa danh sách Beta và danh sách Giá)
-                common = buckets.index.intersection(mret_wide.columns)
+            # Bước D: Align dữ liệu (Giao thoa giữa danh sách Beta và danh sách Giá)
+            common = buckets.index.intersection(mret_wide.columns)
 
-                if len(common) < len(buckets):
-                    missing_count = len(buckets) - len(common)
-                    missing_tickers = list(set(buckets.index) - set(common))
-                    with st.expander(f"⚠️ Cảnh báo: Có {missing_count} mã thiếu dữ liệu giá lịch sử"):
-                        st.write(", ".join(missing_tickers))
+            if len(common) < len(buckets):
+                missing_count = len(buckets) - len(common)
+                missing_tickers = list(set(buckets.index) - set(common))
+                with st.expander(f"⚠️ Cảnh báo: Có {missing_count} mã thiếu dữ liệu giá lịch sử"):
+                    st.write(", ".join(missing_tickers))
 
-                # Lọc dữ liệu chuẩn
-                valid_buckets = buckets.loc[common]
-                valid_mret_wide = mret_wide[common]
+            # Lọc dữ liệu chuẩn
+            valid_buckets = buckets.loc[common]
+            valid_mret_wide = mret_wide[common]
 
-                # --- [FIX MERGE DATA] CHUYỂN ĐỔI FORMAT CHO KHỚP CORE ---
-                # Chuyển từ Wide (Cột là Ticker) sang Long (Cột Date, Ticker, Return)
-                # để hàm backtest_portfolios có thể merge trên cột 'ticker'
-                valid_mret_long = valid_mret_wide.stack().reset_index()
-                valid_mret_long.columns = ['date', 'ticker', 'ret_m']
+            # --- [FIX MERGE DATA] CHUYỂN ĐỔI FORMAT CHO KHỚP CORE ---
+            # Chuyển từ Wide (Cột là Ticker) sang Long (Cột Date, Ticker, Return)
+            # để hàm backtest_portfolios có thể merge trên cột 'ticker'
+            valid_mret_long = valid_mret_wide.stack().reset_index()
+            valid_mret_long.columns = ['date', 'ticker', 'ret_m']
 
-                # Xử lý VNINDEX
-                v_pivot = vni.set_index('date')['close']
-                rm = v_pivot.resample('M').last().pct_change(fill_method=None)
+            # Xử lý VNINDEX
+            v_pivot = vni.set_index('date')['close']
+            rm = v_pivot.resample('M').last().pct_change(fill_method=None)
 
-                # Chạy hàm Backtest (Truyền Long Format vào)
-                curves = backtest_portfolios(valid_mret_long, valid_buckets, rm, weight_mode=w_mode)
+            # Chạy hàm Backtest (Truyền Long Format vào)
+            curves = backtest_portfolios(valid_mret_long, valid_buckets, rm, weight_mode=w_mode)
 
             # --- TÍNH CHỈ SỐ ---
             def calculate_metrics(equity_series, risk_free=0.0):
@@ -884,7 +937,10 @@ def tab_portfolio_report():
                 template="plotly_dark", height=500, hovermode="x unified",
                 legend=dict(orientation="h", y=1.02)
             )
-            fig.write_image("assets/portfolio_performance.png")  # <--- LƯU ẢNH QUAN TRỌNG NHẤT
+            try:
+                fig.write_image("assets/portfolio_performance.png")
+            except Exception:
+                pass
             st.plotly_chart(fig, use_container_width=True)
 
             # --- BẢNG SO SÁNH ---
@@ -897,8 +953,11 @@ def tab_portfolio_report():
                 .background_gradient(cmap="RdYlGn_r", subset=["Max Drawdown", "Volatility (Năm)"]),
                 use_container_width=True
             )
-            metrics_df.to_csv("assets/portfolio_metrics.csv")
-            metrics_df.to_parquet(CACHE_DIR / "portfolio_summary.parquet")
+            try:
+                metrics_df.to_csv("assets/portfolio_metrics.csv")
+                metrics_df.to_parquet(CACHE_DIR / "portfolio_summary.parquet")
+            except Exception:
+                pass
 
             # ============================================================
             # 5. KẾT LUẬN & KHUYẾN NGHỊ (AUTO-INSIGHTS)
@@ -1083,7 +1142,6 @@ def main():
     with tab2:
         # Đã được sửa để hiện minh bạch danh mục
         tab_portfolio_report()
-
 
 if __name__ == "__main__":
     main()

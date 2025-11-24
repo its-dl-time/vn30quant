@@ -1,4 +1,14 @@
-VN30 Quant Dashboard – CAPM, ARIMA & Portfolio Backtest
+# VN30 QUANTITATIVE ANALYSIS DASHBOARD
+### Đồ án môn học: Gói phần mềm ứng dụng cho Tài chính 1
+
+---
+
+## 👨‍🎓 THÔNG TIN SINH VIÊN
+* **Họ và tên:** PHẠM MẠNH QUYỀN
+* **MSSV:** K244141694
+* **Giảng viên hướng dẫn:** THS. NGÔ PHÚ THANH
+
+---
 
 Dự án này xây dựng một dashboard định lượng cho VN30 bằng Python và Streamlit, tập trung vào:
 
@@ -11,6 +21,7 @@ Dự báo ARIMA cho cổ phiếu đơn lẻ (ví dụ GAS)
 Xây dựng danh mục theo beta quantile (Q1–Q4) và backtest hiệu quả so với thị trường
 
 Xuất báo cáo PDF tự động phục vụ bài thi / báo cáo học phần
+
 
 1. Cấu trúc dự án
 
