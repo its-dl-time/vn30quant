@@ -6,7 +6,7 @@
 ## 👨‍🎓 THÔNG TIN SINH VIÊN
 * **Họ và tên:** PHẠM MẠNH QUYỀN
 * **MSSV:** K244141694
-* **Giảng viên hướng dẫn:** THS. NGÔ PHÚ THANH
+* **Giảng viên hướng dẫn:** THS NGÔ PHÚ THANH
 
 ---
 
