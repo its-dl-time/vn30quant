@@ -1,6 +1,6 @@
 {
-  "prices_last_update": "2025-11-23T23:20:27.871945",
-  "prices_last_date": "2025-11-21 00:00:00",
+  "prices_last_update": "2025-11-24T15:51:52.079959",
+  "prices_last_date": "2025-11-24 00:00:00",
   "prices_tickers": [
     "ACB",
     "BCM",
@@ -33,9 +33,9 @@
     "VNM",
     "VPB"
   ],
-  "vnindex_last_update": "2025-11-23T23:20:30.714266",
+  "vnindex_last_update": "2025-11-24T17:06:17.744926",
   "vnindex_last_date": "2025-11-21 00:00:00",
-  "returns_last_update": "2025-11-23T23:20:31.277344",
+  "returns_last_update": "2025-11-24T17:06:18.301857",
   "returns_date_range": {
     "start": "2020-01-03 00:00:00",
     "end": "2025-11-21 00:00:00"
